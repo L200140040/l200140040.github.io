@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
-		<title>Sistem Informasi Geografi - TUGAS 5</title>
+		<title>STREET VIEW</title>
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
@@ -22,18 +22,10 @@
 				margin-top:100px;
 				font-family: Broadway;
 			}
-			ul.addressList{
-			  	text-align: left;
-			  }
-			p.placesText{
-				text-align: left;
-			}
-			h4.warna{
-				color: blue;
-			}
 			.well{
 					text-align: center;
 					font-size: 20px;
+					overflow: auto;
 				}
 			.glyphicon { margin-right:10px; }
 			.panel-body { padding:0px; }
@@ -52,35 +44,30 @@
 		</style>
 
         <style type="text/css">
-              html { height: 100% }
-              body { height: 100%; margin: 5; }
-              #mapDiv { width: 785px; height: 300px; }
-			  #addressDiv { width: 785px; height: 500px; }
+              #mapDiv { width: 785px; height: 345px; }
+              #MapContainerDiv { width: 785px; height: 345px;}
+              #DirectionsContainerDiv { width: 785px; height: 345px;}
+			  #DirectionsListDiv {overflow-y: auto;}
 			  ul.addressList {list-style-type:circle;}
-
         </style>
 
+        <!-- Include Google Maps JS API -->
         <script type="text/javascript"
-          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDt_RuCG8oPCT1R6LneSu4b8kNyn9kP0W0&sensor=false">
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDt_RuCG8oPCT1R6LneSu4b8kNyn9kP0W0&libraries=places&sensor=false">
         </script>
 
   <!-- Map creation is here -->
         <script type="text/javascript">
               //Defining map as a global variable to access from other functions
               var map;
-			  //define global marker popup variable
-			  var popup;
 			  
 			  //define global geocoder object
 			  var geocoder;
 			  
+			  //define global streetView object
+			  var streetView;
+			  
               function initMap() {
-					//get the listAddressBtn and add click event listener
-					var listAddressBtn = document.getElementById('listAdressBtn');
-					listAddressBtn.addEventListener('click', function(){ 
-						listAddresses();
-					});
-					
 					//initialize info popup window
 					popup = new google.maps.InfoWindow();
 					
@@ -91,7 +78,7 @@
                     google.maps.visualRefresh = true;
                     //Setting starting options of map
                     var mapOptions = {
-                          center: new google.maps.LatLng(-7.9078, 110.8252),
+                          center: new google.maps.LatLng(-7.5717183, 110.7790199),
                           zoom: 10,
                           mapTypeId: google.maps.MapTypeId.ROADMAP
                     };
@@ -99,70 +86,99 @@
                     var mapElement = document.getElementById("mapDiv");
                     //Creating a map with DOM element which is just obtained
                     map = new google.maps.Map(mapElement, mapOptions);
+					
+					//initialize streetView object of type StreetViewPanorama
+					streetView = map.getStreetView();
 										
 				}
 			
-				//function for listing addresses on the addressList element
+				//put a marker in the map for the addresses geocoded
+				function showAddressMarkerOnMapOrStreetView(result) {
+					var marker = new google.maps.Marker({
+						map:map,
+						position: result.geometry.location
+					});
+					
+					map.setCenter(result.geometry.location);
+					map.setZoom(16);
+				}
+				
+				//function for setting the streetView properties
+				function setStreetViewOptions(location)
+				{
+					//set the location of the streetView object
+					streetView.setPosition(location);
+					//set the "Point Of View" of streetView object
+					streetView.setPov({
+						heading: 0,
+						pitch: 10
+					});
+				}
+				
+				//function for listing addresses on the addressList element and calling the geocoding stuff
 				function listAddresses()
 				{
 					//get text input handler
 					var addressField = document.getElementById('addressField');
 					//get addressList <ul> element handle
 					var addressList = document.getElementById('addressList');
-					if (addressList.children.length === 0)
+					if (addressList.children.length == 0)
 					{
 						var placesText = document.getElementById('placesText');
-						placesText.innerHTML = '<br/>Tempat yang pernah dikunjungi:';
+						placesText.innerHTML = '<br/><b>Lokasi Yang Ditampilkan:</b>';
 					}
 					//create a list item
-					var listItem = document.createElement("li");
+					var listItem = document.createElement('li');
 					//get the text in the input element and make it a list item
 					listItem.innerHTML = addressField.value;
 					listItem.addEventListener('click', function(){
-						geocodeAddress(listItem.innerHTML);
+						pinAddressOnMapOrStreetView(listItem.innerHTML);
 					});
 					//append it to the <ul> element
 					addressList.appendChild(listItem);
 					
 					//call the geocoding function
-					geocodeAddress(addressField.value);
+					pinAddressOnMapOrStreetView(addressField.value);
 				}
 				
 				//function for geocoding the addresses
-				function geocodeAddress(addressText)
-				{
-					//real essence, send the geocoding request
-					geocoder.geocode( {'address': addressText}, function(results, status) {
+				function pinAddressOnMapOrStreetView(addressText)
+				{	
+					//send the geocoding request
+					geocoder.geocode({ 'address': addressText}, function(results, status) {
       					//if the service is working properly...
       					if (status == google.maps.GeocoderStatus.OK) {
-        					//show the first result on map
-        					pinpointResult(results[0]);
+        					//show the first result on map, either on 
+        					showAddressMarkerOnMapOrStreetView(results[0]);
+							if (streetView.getVisible())
+							{
+								//set the streetView properties, its location and "Point Of View"
+								setStreetViewOptions(results[0].geometry.location);
+							}
       					} else {
         					alert('Cannot geocode because: ' + status);
       					}
     				});
 				}
 				
-				//put a marker in the map and attach a infowindow to display its details
-				function pinpointResult(result) {
-					var marker = new google.maps.Marker({
-						map: map,
-						position: result.geometry.location
-					});
-					
-					map.setCenter(result.geometry.location);
-					map.setZoom(16);
-					//infowindow stuff
-					google.maps.event.addListener(marker, 'click', function() {
-						//debugger;
-						var popupContent = '<b>Address: </b> ' + result.formatted_address;
-						popup.setContent(popupContent);
-						popup.open(map, this);
-					});
+				//function for displaying the familiar map view
+				function showMap()
+				{
+					var pinAddressBtn = document.getElementById('pinAddress');
+					pinAddressBtn.value = 'Tandai Pada Peta';
+					streetView.setVisible(false);
 				}
 				
+				//function for displaying the streetView
+				function showStreetView()
+				{
+					var pinAddressBtn = document.getElementById('pinAddress');
+					pinAddressBtn.value = 'Tandai Pada Street View';
+					
+					setStreetViewOptions(map.getCenter());
+					streetView.setVisible(true);
+				}	
         </script>
-
 
 </head>
 <body onload="initMap()">
@@ -177,21 +193,20 @@
 	   
 	   <div>
 			
-	      <p class = "navbar-text navbar-right">
+	     <p class = "navbar-text navbar-right">
 				<a class = "navbar-brand" href = "https://github.com/L200140007"><label>L200140007 | Yuli Hapsari</label></a>
 	       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
 	      
 	   </div>
 	   </nav>
 	</div>
-
     	<div class="col-md-9">
     		<div class="panel-body page-contents">
 
-    		<div id="tugas5" class="content-p collapse in">
+    		
     		<div class="well">
 
-    			<center><h4><b> TUGAS 5 </b></h4></center><br/>
+    			<center><h4><b><img height='100' weight='100' src='1.png'></img></b></h4></center><br/>
 				
 				<a href="tugas5_alamat.html" class="btn btn-success" role="button">Alamat</a>
 				<a href="tugas5_koordinat.html" class="btn btn-success" role="button">Koordinat</a>
@@ -200,10 +215,21 @@
 				<a href="tugas5_rute.html" class="btn btn-success" role="button">Rute</a>
 				<a href="tugas5_street_view.html" class="btn btn-success" role="button">Street View</a>
 				
+				<div>
+					<br/><div id="mapDiv"/>
+				</div>
+				<div id="addressDiv">
+					<br/><br/><h4><b>Cari Lokasi Street View</b></h4>
+					<input size="14px" class="form-group form-control" id="addressField" type="text" size="30"  placeholder="Masukkan Alamat...." />
+					<input id="pinAddress" class="btn btn-success" type="button" value="Tandai Pada Peta" onclick="listAddresses()"  />
+					<input class="btn btn-success" type="button" value="Lihat Peta" onclick="showMap()"  />
+					<input id="pinAddressOnMapBtn" class="btn btn-success" type="button" value="Lihat Street View" onclick="showStreetView()"  />
+					<p id="placesText" class="placesText"></p>
+					<ul id="addressList" class="addressList">
+					</ul>
+				</div>
 				
-				<h4 class="warna"><label><br/></label></h4>
 
-    		</div>
     		</div>
 
     		</div>

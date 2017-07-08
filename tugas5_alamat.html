@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
-		<title>Sistem Informasi Geografi - TUGAS 5</title>
+		<title>ALAMAT</title>
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
@@ -28,9 +28,6 @@
 			p.placesText{
 				text-align: left;
 			}
-			h4.warna{
-				color: blue;
-			}
 			.well{
 					text-align: center;
 					font-size: 20px;
@@ -52,46 +49,39 @@
 		</style>
 
         <style type="text/css">
-              html { height: 100% }
-              body { height: 100%; margin: 5; }
-              #mapDiv { width: 785px; height: 300px; }
+              #mapDiv { width: 785px; height: 345px; }
 			  #addressDiv { width: 785px; height: 500px; }
 			  ul.addressList {list-style-type:circle;}
 
         </style>
 
+        <!-- Include Google Maps JS API -->
         <script type="text/javascript"
-          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDt_RuCG8oPCT1R6LneSu4b8kNyn9kP0W0&sensor=false">
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDt_RuCG8oPCT1R6LneSu4b8kNyn9kP0W0&libraries=drawing&sensor=false">
         </script>
 
   <!-- Map creation is here -->
         <script type="text/javascript">
               //Defining map as a global variable to access from other functions
               var map;
-			  //define global marker popup variable
-			  var popup;
-			  
-			  //define global geocoder object
-			  var geocoder;
-			  
-              function initMap() {
-					//get the listAddressBtn and add click event listener
-					var listAddressBtn = document.getElementById('listAdressBtn');
-					listAddressBtn.addEventListener('click', function(){ 
-						listAddresses();
-					});
+              
+              //define global geocoder object
+      			  var geocoder;
+      			  
+      			  //define global marker popup variable
+      			  var popup;
+                    
+                    function initMap() {
+                          //initialize geocoder object
+					geocoder = new google.maps.Geocoder();
 					
 					//initialize info popup window
 					popup = new google.maps.InfoWindow();
-					
-					//initialize geocoder object
-					geocoder = new google.maps.Geocoder();
-					
-					//Enabling new cartography and themes
+                    //Enabling new cartography and themes
                     google.maps.visualRefresh = true;
                     //Setting starting options of map
                     var mapOptions = {
-                          center: new google.maps.LatLng(-7.9078, 110.8252),
+                          center: new google.maps.LatLng(-7.5717183, 110.7790199),
                           zoom: 10,
                           mapTypeId: google.maps.MapTypeId.ROADMAP
                     };
@@ -99,68 +89,60 @@
                     var mapElement = document.getElementById("mapDiv");
                     //Creating a map with DOM element which is just obtained
                     map = new google.maps.Map(mapElement, mapOptions);
-										
-				}
-			
-				//function for listing addresses on the addressList element
-				function listAddresses()
-				{
-					//get text input handler
-					var addressField = document.getElementById('addressField');
-					//get addressList <ul> element handle
-					var addressList = document.getElementById('addressList');
-					if (addressList.children.length === 0)
-					{
-						var placesText = document.getElementById('placesText');
-						placesText.innerHTML = '<br/>Tempat yang pernah dikunjungi:';
-					}
-					//create a list item
-					var listItem = document.createElement("li");
-					//get the text in the input element and make it a list item
-					listItem.innerHTML = addressField.value;
-					listItem.addEventListener('click', function(){
-						geocodeAddress(listItem.innerHTML);
-					});
-					//append it to the <ul> element
-					addressList.appendChild(listItem);
 					
-					//call the geocoding function
-					geocodeAddress(addressField.value);
-				}
-				
-				//function for geocoding the addresses
-				function geocodeAddress(addressText)
-				{
-					//real essence, send the geocoding request
-					geocoder.geocode( {'address': addressText}, function(results, status) {
-      					//if the service is working properly...
-      					if (status == google.maps.GeocoderStatus.OK) {
-        					//show the first result on map
-        					pinpointResult(results[0]);
-      					} else {
-        					alert('Cannot geocode because: ' + status);
-      					}
-    				});
-				}
-				
-				//put a marker in the map and attach a infowindow to display its details
-				function pinpointResult(result) {
-					var marker = new google.maps.Marker({
-						map: map,
-						position: result.geometry.location
+					//creating drawingManager
+					var drawingManager = new google.maps.drawing.DrawingManager({
+						//initial drawing tool to be enabled
+						drawingMode:null,
+						//enable the drawingControl to be seen in the UI
+						drawingControl:true,
+						//select which drawing modes to be seen in the drawingControl and position them
+						drawingControlOptions: {
+							//select a position in the UI
+							position: google.maps.ControlPosition.TOP_CENTER,
+							//selected drawing modes to be seen in the control
+							drawingModes: [
+								google.maps.drawing.OverlayType.MARKER
+							]
+						}
 					});
 					
-					map.setCenter(result.geometry.location);
-					map.setZoom(16);
-					//infowindow stuff
-					google.maps.event.addListener(marker, 'click', function() {
-						//debugger;
+					//enable drawing functionality
+					drawingManager.setMap(map);
+					
+					//add event listener for completion of your marker
+					google.maps.event.addListener(drawingManager, 'markercomplete', function(marker) {
+						
+						//get the LatLng object of the marker, it is necessary for the geocoder
+						var markerPosition = marker.getPosition();
+						
+						//reverse geocode the LatLng object to return the addresses
+						geocoder.geocode({'latLng': markerPosition}, function(results, status) {
+      						//if the service is working properly...
+      						if (status == google.maps.GeocoderStatus.OK) {
+        						//Array of results will return if everything is OK
+        						if (results) {
+        							//infowindow stuff
+        							showAddressOfResult(results[0],marker);
+        						}
+      						} 
+      						//if the service is not working, deal with it
+      						else {
+        						alert("Reverse Geocoding failed because: " + status);
+      						}
+    					});	
+					});
+					
+					//function for displaying the address on the infowindow
+					function showAddressOfResult(result, marker) {
+						map.setCenter(marker.getPosition());
+						map.setZoom(13);
 						var popupContent = '<b>Address: </b> ' + result.formatted_address;
 						popup.setContent(popupContent);
-						popup.open(map, this);
-					});
-				}
-				
+						popup.open(map, marker);
+					
+					}
+              }  
         </script>
 
 
@@ -184,14 +166,13 @@
 	   </div>
 	   </nav>
 	</div>
-
     	<div class="col-md-9">
     		<div class="panel-body page-contents">
 
     		<div id="tugas5" class="content-p collapse in">
     		<div class="well">
 
-    			<center><h4><b> TUGAS 5 </b></h4></center><br/>
+    			<center><h4><b> <img height='100' weight='100' src='1.png'></img> </b></h4></center><br/>
 				
 				<a href="tugas5_alamat.html" class="btn btn-success" role="button">Alamat</a>
 				<a href="tugas5_koordinat.html" class="btn btn-success" role="button">Koordinat</a>
@@ -200,8 +181,10 @@
 				<a href="tugas5_rute.html" class="btn btn-success" role="button">Rute</a>
 				<a href="tugas5_street_view.html" class="btn btn-success" role="button">Street View</a>
 				
-				
-				<h4 class="warna"><label><br/></label></h4>
+				<div>
+					<br/><div id="mapDiv">
+					</div>
+				</div>
 
     		</div>
     		</div>
